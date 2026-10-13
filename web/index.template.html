@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="sk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hľadač piesní | Arduino Mega</title>
+<meta name="description" content="Arduino Mega, zvukový senzor a LCD displej, ktoré rozpoznajú práve hrajúcu skladbu pomocou služby AudD. Zapojenie, princíp a celý kód. Vyrobil Tomáš Dobos.">
+<meta name="author" content="Tomáš Dobos">
+<meta property="og:title" content="Hľadač piesní | Arduino Mega">
+<meta property="og:description" content="Arduino rozpozná skladbu, ktorá práve hrá, a ukáže ju na LCD s živým spektrom. Vyrobil Tomáš Dobos.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#04060c">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2304060c'/%3E%3Crect x='5' y='16' width='3' height='11' fill='%2335e6ff'/%3E%3Crect x='10' y='8' width='3' height='19' fill='%2335e6ff'/%3E%3Crect x='15' y='12' width='3' height='15' fill='%2335e6ff'/%3E%3Crect x='20' y='5' width='3' height='22' fill='%2335e6ff'/%3E%3Crect x='25' y='14' width='3' height='13' fill='%2335e6ff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Exo+2:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="style.css">
+<noscript><style>.slot img, .slot video { opacity: 1; }</style></noscript>
+</head>
+<body>
+
+<header class="bar">
+  <div class="wrap">
+    <a class="brand" href="#top"><i></i>Hľadač piesní</a>
+    <nav aria-label="Hlavná navigácia">
+      <a href="#media">Média</a>
+      <a href="#komponenty">Súčiastky</a>
+      <a href="#zapojenie">Zapojenie</a>
+      <a href="#audd">AudD</a>
+      <a href="#princip">Princíp</a>
+      <a href="#kod">Kód</a>
+      <a href="#vyuzitie">Využitie</a>
+      <a class="keep" href="https://github.com/tomaskooooo/arduino-rozpoznanie-pesniciek" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <div class="wrap">
+    <div class="hero">
+      <div>
+        <p class="tag">Projekt pre Arduino Mega</p>
+        <h1>Hľadač piesní</h1>
+        <p class="lead">Malé zariadenie, ktoré päť sekúnd počúva hudbu, cez internet rozpozná skladbu a zobrazí jej názov a interpreta na LCD displeji. Dolný riadok ukazuje živé spektrum zvuku.</p>
+        <div class="cta">
+          <a class="btn" href="https://github.com/tomaskooooo/arduino-rozpoznanie-pesniciek" target="_blank" rel="noopener">Zdrojový kód</a>
+          <a class="btn ghost" href="#princip">Ako to funguje</a>
+        </div>
+        <p class="byline"><span>Vyrobil</span><b>Tomáš Dobos</b><span>študent CSOŠ Frašattiho III. GDMPS</span></p>
+      </div>
+
+      <figure class="device" style="margin:0">
+        <div class="lcd" role="img" aria-label="Ukážka displeja: v hornom riadku názov skladby, v dolnom riadku stĺpce spektra zvuku">
+          <div class="lcd-row" id="lcd-top" aria-hidden="true">{{LCD_TOP}}</div>
+          <div class="lcd-row" id="lcd-bars" aria-hidden="true">{{LCD_BARS}}</div>
+        </div>
+        <ul class="chips">
+          <li>16 pásiem</li>
+          <li>20 snímok za sekundu</li>
+          <li>5 s nahrávka</li>
+        </ul>
+        <figcaption>Ukážka displeja počas hrania. Hore sa posúva názov a interpret, dole poskakujú stĺpce podľa hudby.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <section id="co-to-je">
+    <div class="wrap">
+      <div class="head"><p class="tag">Čo to je</p><h2>Equalizer, ktorý vie pomenovať pieseň</h2></div>
+      <div class="prose">
+        <p>Hľadač piesní spája zvukový senzor, Arduino Mega, LCD displej a online službu na rozpoznávanie hudby. Stlačíš tlačidlo a Arduino päť sekúnd nahráva zvuk z okolia. Nahrávku pošle počítaču, ten ju odošle službe AudD a tá vráti názov skladby a interpreta. Výsledok sa zobrazí v hornom riadku displeja. Dlhší text sa po riadku posúva, aby sa dalo prečítať každé slovo.</p>
+        <p>Dolný riadok displeja pracuje samostatne. Arduino v ňom stále zobrazuje 16 stĺpcov, každý pre jedno frekvenčné pásmo, od basov vľavo po výšky vpravo. Stĺpce poskakujú podľa toho, čo práve hrá, takže displej funguje aj ako malý equalizer.</p>
+        <p>Arduino Mega nemá internet ani dosť výkonu na rozpoznávanie skladieb, preto sa o prácu delí s počítačom.</p>
+      </div>
+      <div class="grid" style="margin-top:1.5rem">
+        <div class="panel card"><span class="qty">Arduino Mega</span><b>Zbiera a zobrazuje</b><p>Číta tlačidlo, vzorkuje zvukový senzor, kreslí na LCD a počíta spektrum.</p></div>
+        <div class="panel card"><span class="qty">Počítač</span><b>Rozpoznáva</b><p>Prijme nahrávku, pošle ju službe AudD a výsledok vráti na displej.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="media">
+    <div class="wrap">
+      <div class="head"><p class="tag">Média</p><h2>Ako to vyzerá naživo</h2></div>
+      <figure class="slot video panel" style="margin:0">
+        <video controls preload="metadata" poster="assets/img/poster.jpg" playsinline>
+          <source src="assets/video/demo.mp4" type="video/mp4">
+        </video>
+        <div class="ph"><span>Video ukážka</span><span>assets/video/demo.mp4</span></div>
+      </figure>
+      <div class="media-grid">
+        <figure class="slot panel" style="margin:0"><img src="assets/img/foto-1.jpg" alt="Hotové zariadenie: Arduino Mega s LCD displejom a zvukovým senzorom" loading="lazy"><div class="ph"><span>Fotka 1</span><span>assets/img/foto-1.jpg</span></div></figure>
+        <figure class="slot panel" style="margin:0"><img src="assets/img/foto-2.jpg" alt="Zapojenie na nepájivom poli" loading="lazy"><div class="ph"><span>Fotka 2</span><span>assets/img/foto-2.jpg</span></div></figure>
+        <figure class="slot panel" style="margin:0"><img src="assets/img/foto-3.jpg" alt="LCD displej so spektrom a názvom skladby" loading="lazy"><div class="ph"><span>Fotka 3</span><span>assets/img/foto-3.jpg</span></div></figure>
+      </div>
+    </div>
+  </section>
+
+  <section id="komponenty">
+    <div class="wrap">
+      <div class="head"><p class="tag">Hardvér</p><h2>Čo potrebuješ</h2></div>
+      <div class="grid">
+        <div class="panel card"><span class="qty">1 ks</span><b>Arduino Mega 2560</b><p>Riadi všetko a komunikuje s počítačom cez USB.</p></div>
+        <div class="panel card"><span class="qty">1 ks</span><b>Zvukový senzor KS0035</b><p>Analógový mikrofón. Trimer na ňom mení zosilnenie.</p></div>
+        <div class="panel card"><span class="qty">1 ks</span><b>LCD displej 16×2</b><p>Čip HD44780 s 16 pinmi, bez I2C modulu.</p></div>
+        <div class="panel card"><span class="qty">1 ks</span><b>Tlačidlo so 4 nožičkami</b><p>Spustí počúvanie.</p></div>
+        <div class="panel card"><span class="qty">1 ks</span><b>Potenciometer 10 kΩ</b><p>Kontrast displeja. Alternatívou sú rezistory 4,7 kΩ a 1 kΩ.</p></div>
+        <div class="panel card"><span class="qty">1 ks</span><b>Rezistor 220 Ω</b><p>Obmedzuje prúd podsvietenia.</p></div>
+        <div class="panel card"><span class="qty">–</span><b>Nepájivé pole a vodiče</b><p>Zapojenie bez spájkovania.</p></div>
+      </div>
+      <h3>Softvér a účty</h3>
+      <ul class="plain">
+        <li>Arduino IDE. Knižnica LiquidCrystal je jeho súčasťou.</li>
+        <li>Python 3 s balíkmi <code>pyserial</code>, <code>numpy</code> a <code>requests</code>.</li>
+        <li>Počítač s Windowsom a pripojením na internet. Ovládanie citlivosti klávesmi používa funkciu, ktorá je len vo Windowse.</li>
+        <li>Bezplatný účet na audd.io a API kľúč.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="zapojenie">
+    <div class="wrap">
+      <div class="head"><p class="tag">Hardvér</p><h2>Zapojenie</h2></div>
+      <div class="prose"><p>Všetko sa zapája na nepájivom poli. Najdôležitejšie je správne poradie pinov displeja. Displej beží v 4-bitovom režime, takže piny 7 až 10 (D0 až D3) nechaj nezapojené.</p></div>
+
+      <h3>LCD displej 16×2</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col" class="num">Pin LCD</th><th scope="col">Označenie</th><th scope="col">Zapojiť na</th></tr></thead>
+          <tbody>
+            <tr><td class="num">1</td><td>VSS</td><td>GND</td></tr>
+            <tr><td class="num">2</td><td>VDD</td><td>5V</td></tr>
+            <tr><td class="num">3</td><td>V0</td><td>stredný vývod potenciometra (kontrast)</td></tr>
+            <tr><td class="num">4</td><td>RS</td><td>Mega pin 22</td></tr>
+            <tr><td class="num">5</td><td>RW</td><td>GND</td></tr>
+            <tr><td class="num">6</td><td>E</td><td>Mega pin 23</td></tr>
+            <tr><td class="num">7 až 10</td><td>D0 až D3</td><td>nezapojené</td></tr>
+            <tr><td class="num">11</td><td>D4</td><td>Mega pin 24</td></tr>
+            <tr><td class="num">12</td><td>D5</td><td>Mega pin 25</td></tr>
+            <tr><td class="num">13</td><td>D6</td><td>Mega pin 26</td></tr>
+            <tr><td class="num">14</td><td>D7</td><td>Mega pin 27</td></tr>
+            <tr><td class="num">15</td><td>A (podsvietenie +)</td><td>cez rezistor 220 Ω na Mega pin 9</td></tr>
+            <tr><td class="num">16</td><td>K (podsvietenie −)</td><td>GND</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="grid" style="margin-top:1.5rem">
+        <div>
+          <h3 style="margin-top:0">Zvukový senzor</h3>
+          <div class="table-wrap"><table style="min-width:0">
+            <thead><tr><th scope="col">Pin senzora</th><th scope="col">Zapojiť na</th></tr></thead>
+            <tbody><tr><td>G</td><td>GND</td></tr><tr><td>V</td><td>5V</td></tr><tr><td>S</td><td>Mega pin A4</td></tr></tbody>
+          </table></div>
+          <p style="margin-top:0.8rem;color:var(--muted);font-size:0.95rem">Trimer na senzore nastavuje zosilnenie. Pri hlasnej skladbe by hodnota <code>max</code> vo výpise programu mala byť aspoň okolo 50.</p>
+        </div>
+        <div>
+          <h3 style="margin-top:0">Tlačidlo</h3>
+          <p style="color:#c4d3f2">Štvornohé tlačidlo má nožičky spojené po dvojiciach. Zapoj ho uhlopriečne: jednu nožičku na Mega pin 2 a protiľahlú na GND. Rezistor netreba, program zapína vnútorný pull-up.</p>
+          <h3>Podsvietenie a kontrast</h3>
+          <p style="color:#c4d3f2">Rezistor 220 Ω vedie z vývodu A na pin 9, ktorý vie meniť jas. Kontrast nastavíš potenciometrom medzi 5V a GND so stredným vývodom na V0. Bez neho urob delič: 4,7 kΩ z 5V na V0 a 1 kΩ z V0 na GND. V0 priamo na GND je maximálny kontrast, pri ktorom sa písmená strácajú v štvorčekoch.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="audd">
+    <div class="wrap">
+      <div class="head"><p class="tag">Softvér</p><h2>Služba AudD</h2></div>
+      <div class="prose">
+        <p>AudD je online služba na rozpoznávanie hudby. Pošleš jej krátku nahrávku, stačí pár sekúnd, a vráti názov skladby, interpreta, album a odkaz. Nahrávku porovnáva so zvukovými odtlačkami skladieb vo svojej databáze.</p>
+      </div>
+      <h3>Ako získať kľúč</h3>
+      <ol class="plain">
+        <li>Zaregistruj sa na <a href="https://dashboard.audd.io" target="_blank" rel="noopener">dashboard.audd.io</a>.</li>
+        <li>Na hlavnej stránke dashboardu nájdeš svoj <code>api_token</code>. Skopíruj ho.</li>
+        <li>Po registrácii máš skúšobné obdobie, v ktorom môžeš API vyskúšať zadarmo. Aktuálne limity a ceny sú v dashboarde.</li>
+      </ol>
+      <h3>Ako vyzerá požiadavka</h3>
+      <div class="prose"><p>Stačí jeden HTTP POST na <code>https://api.audd.io/</code> s poľom <code>api_token</code> a súborom v poli <code>file</code>.</p></div>
+      <div class="grid" style="margin-top:1rem">
+        <pre class="plainpre"><code>import requests
+
+r = requests.post(
+    "https://api.audd.io/",
+    data={"api_token": "SEM_VLOZ_SVOJ_TOKEN"},
+    files={"file": open("nahravka.wav", "rb")},
+)
+print(r.json())</code></pre>
+        <pre class="plainpre"><code>{
+  "status": "success",
+  "result": {
+    "artist": "Tears For Fears",
+    "title": "Everybody Wants To Rule The World",
+    "album": "Songs From The Big Chair",
+    "release_date": "2014-11-10",
+    "timecode": "00:56"
+  }
+}</code></pre>
+      </div>
+      <div class="prose" style="margin-top:1rem"><p>Keď AudD skladbu nepozná, pole <code>result</code> je <code>null</code> a program zobrazí „No match, try again“. Pri zlom kľúči vráti chybu <code>authorization failed</code>.</p></div>
+      <div class="warn" style="margin-top:1.5rem">
+        <b>Pozor</b>
+        <span>API kľúč je ako heslo. Nevkladaj ho do kódu, ktorý zverejňuješ, a nedávaj ho na webovú stránku. Kto ho uvidí, môže míňať tvoje dotazy. V tomto repozitári je kľúč v súbore <code>host/audd_token.txt</code>, ktorý Git ignoruje.</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="princip">
+    <div class="wrap">
+      <div class="head"><p class="tag">Princíp</p><h2>Ako to funguje</h2></div>
+      <ol class="flow" aria-label="Tok údajov">
+        <li class="node"><b>Zvukový senzor</b><span>mikrofón KS0035</span></li>
+        <li class="link" aria-hidden="true"><div class="line"></div><span>pin A4</span></li>
+        <li class="node"><b>Arduino Mega</b><span>vzorky, LCD, tlačidlo</span></li>
+        <li class="link" aria-hidden="true"><div class="line"></div><span>USB</span></li>
+        <li class="node"><b>Počítač</b><span>program recognize.py</span></li>
+        <li class="link" aria-hidden="true"><div class="line"></div><span>internet</span></li>
+        <li class="node"><b>AudD</b><span>databáza skladieb</span></li>
+      </ol>
+
+      <h3>Jedno rozpoznanie krok za krokom</h3>
+      <ol class="steps">
+        <li><div><strong>Stlačenie tlačidla.</strong> Arduino zobrazí „Listening...“ a päť sekúnd vzorkuje senzor na pine A4: 8 000 vzoriek za sekundu, 8 bitov na vzorku, spolu 40 000 bajtov.</div></li>
+        <li><div><strong>Prenos do počítača.</strong> Arduino pošle hlavičku <code>AUDIO 40000</code> a hneď za ňou surové bajty cez USB rýchlosťou 250 000 baudov.</div></li>
+        <li><div><strong>Úprava zvuku.</strong> Počítač odpočíta jednosmernú zložku, pretože senzor je v pokoji blízko nuly. Potom signál zosilní na plnú hlasitosť a uloží ho ako 16-bitový súbor WAV.</div></li>
+        <li><div><strong>Rozpoznanie.</strong> Počítač odošle WAV službe AudD a čaká na odpoveď.</div></li>
+        <li><div><strong>Zobrazenie.</strong> Počítač pošle text „názov - interpret“ späť na Arduino. Písmená s diakritikou nahradí obyčajnými, lebo font displeja ich nemá. Dlhý text sa v hornom riadku posúva.</div></li>
+      </ol>
+
+      <h3>Živé spektrum v dolnom riadku</h3>
+      <div class="prose"><p>Arduino meria zvuk neustále, aj keď práve nerozpoznáva. Jeden obrázok vzniká takto:</p></div>
+      <ol class="plain" style="margin-top:1rem;max-width:46rem">
+        <li>Arduino odmeria 128 vzoriek pri 8 kHz, čo trvá 16 ms, a odpočíta ich priemer.</li>
+        <li>Pre každé z 16 pásiem spustí Goertzelov filter. Je to zjednodušená FFT, ktorá počíta len jednu frekvenciu naraz, a preto sa zmestí do pamäte a výkonu Arduina Mega bez dodatočných knižníc. Pásma sú rozložené logaritmicky od 110 Hz do 3 500 Hz.</li>
+        <li>Z výsledku sa vypočíta amplitúda každého pásma. Automatické zosilnenie sa prispôsobuje najhlasnejšiemu pásmu posledných pár desatín sekundy, takže stĺpce poskakujú pri tichej aj hlasnej hudbe.</li>
+        <li>Šumová brána skryje pásma slabšie ako šum senzora. V tichu sa displej nehýbe.</li>
+        <li>Výška každého stĺpca sa zaokrúhli na jednu z 8 úrovní. Každá úroveň je vlastný znak displeja, ktorý Arduino nahrá do pamäte LCD. Stĺpec rastie okamžite a klesá o jeden stupeň za snímku.</li>
+      </ol>
+      <div class="prose" style="margin-top:1rem"><p>Výsledkom je približne 20 snímok za sekundu. Počas päťsekundového nahrávania sa spektrum nekreslí a po nahraní sa obnoví samo.</p></div>
+    </div>
+  </section>
+
+  <section id="kod">
+    <div class="wrap">
+      <div class="head"><p class="tag">Kód</p><h2>Celý kód</h2></div>
+      <div class="tabs" role="tablist" aria-label="Zdrojový kód">
+        <button type="button" role="tab" id="tab-arduino" aria-controls="panel-arduino" aria-selected="true">Arduino</button>
+        <button type="button" role="tab" id="tab-python" aria-controls="panel-python" aria-selected="false">Python</button>
+      </div>
+
+      <div role="tabpanel" id="panel-arduino" aria-labelledby="tab-arduino">
+        <div class="prose" style="margin-bottom:1rem"><p>Nahraj ho cez Arduino IDE. Vyber dosku „Arduino Mega or Mega 2560“ a správny port. Zavri pritom program v Pythone, lebo port môže mať otvorený naraz len jeden program. Súbor je <code>firmware/song_finder/song_finder.ino</code>.</p></div>
+        <div class="code">
+          <div class="code-head"><span>Arduino C++ · song_finder.ino</span><button type="button" class="copy" data-copy="code-arduino">Kopírovať</button></div>
+          <pre><code id="code-arduino" class="language-cpp">{{ARDUINO}}</code></pre>
+        </div>
+        <h3>Príkazy medzi Arduinom a počítačom</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th scope="col">Smer</th><th scope="col">Správa</th><th scope="col">Význam</th></tr></thead>
+            <tbody>
+              <tr><td>PC → Arduino</td><td><code>L&lt;text&gt;</code></td><td>zobrazí text v hornom riadku (najviac 120 znakov)</td></tr>
+              <tr><td>PC → Arduino</td><td><code>B&lt;0–255&gt;</code></td><td>jas podsvietenia</td></tr>
+              <tr><td>PC → Arduino</td><td><code>S&lt;1–9&gt;</code></td><td>citlivosť spektra</td></tr>
+              <tr><td>PC → Arduino</td><td><code>D1</code> a <code>D0</code></td><td>ladiaci výpis zapnúť a vypnúť</td></tr>
+              <tr><td>Arduino → PC</td><td><code>AUDIO 40000</code></td><td>hlavička nahrávky, za ňou 40 000 bajtov vzoriek</td></tr>
+              <tr><td>Arduino → PC</td><td><code>BOOT</code></td><td>Arduino sa práve spustilo</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div role="tabpanel" id="panel-python" aria-labelledby="tab-python">
+        <div class="prose" style="margin-bottom:1rem">
+          <p>Program beží na počítači. Nainštaluj balíky, vlož AudD kľúč do súboru <code>host/audd_token.txt</code> a spusti ho s číslom portu Arduina.</p>
+        </div>
+        <pre class="plainpre" style="margin-bottom:1rem"><code>pip install -r host/requirements.txt
+python host/recognize.py COM9
+python host/recognize.py COM9 50   # jas podsvietenia 50 %</code></pre>
+        <div class="code">
+          <div class="code-head"><span>Python 3 · host/recognize.py</span><button type="button" class="copy" data-copy="code-python">Kopírovať</button></div>
+          <pre><code id="code-python" class="language-python">{{PYTHON}}</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="pouzitie">
+    <div class="wrap">
+      <div class="head"><p class="tag">Spustenie</p><h2>Ako to rozbehať</h2></div>
+      <ol class="steps">
+        <li><div>Zapoj všetko podľa tabuliek a pripoj Arduino USB káblom.</div></li>
+        <li><div>Nahraj Arduino kód.</div></li>
+        <li><div>Vlož svoj AudD kľúč do súboru <code>host/audd_token.txt</code>.</div></li>
+        <li><div>Spusti <code>python host/recognize.py COM9</code>. Číslo portu nájdeš v Správcovi zariadení v časti Porty (COM a LPT).</div></li>
+        <li><div>Pusti hlasnú skladbu a daj reproduktor tesne k senzoru.</div></li>
+        <li><div>Stlač tlačidlo. Výsledok sa zobrazí po piatich sekundách. Klávesmi <code>+</code> a <code>-</code> v okne programu meníš citlivosť spektra.</div></li>
+      </ol>
+      <h3>Čo ukazuje horný riadok</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Text</th><th scope="col">Význam</th></tr></thead>
+          <tbody>
+            <tr><td>Song finder</td><td>úvodný stav po štarte Arduina</td></tr>
+            <tr><td>Press button to listen</td><td>počítačový program beží a čaká na tlačidlo</td></tr>
+            <tr><td>Listening...</td><td>Arduino práve nahráva</td></tr>
+            <tr><td>Searching...</td><td>čaká sa na odpoveď AudD</td></tr>
+            <tr><td>názov - interpret</td><td>výsledok, dlhý text sa posúva</td></tr>
+            <tr><td>No match, try again</td><td>skladba sa nerozpoznala</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="vyuzitie">
+    <div class="wrap">
+      <div class="head"><p class="tag">Využitie</p><h2>Na čo sa to dá použiť</h2></div>
+      <div class="grid">
+        <div class="panel card"><b>Displej „čo hrá?“</b><p>V miestnosti, v dielni alebo na párty ukáže názov skladby bez telefónu.</p></div>
+        <div class="panel card"><b>Vizualizácia hudby</b><p>Dolný riadok funguje ako stolový equalizer aj bez rozpoznávania.</p></div>
+        <div class="panel card"><b>Učenie elektroniky</b><p>Analógové vstupy, vzorkovanie, spracovanie signálu, sériová komunikácia, displej a internetové API na jednom projekte.</p></div>
+        <div class="panel card"><b>Zoznam skladieb</b><p>Počítačový program môže každý výsledok uložiť do súboru a vytvoriť z neho playlist. Tento nápad tu zatiaľ nie je.</p></div>
+        <div class="panel card"><b>Svetelná show</b><p>Hodnoty 16 pásiem sa dajú poslať na LED pásik alebo maticu, ktoré budú reagovať na hudbu.</p></div>
+        <div class="panel card"><b>Krúžok a výstava</b><p>Princíp rozpoznávania hudby sa na malom zariadení dá ukázať názorne.</p></div>
+      </div>
+
+      <h3>Obmedzenia a riešenie problémov</h3>
+      <ul class="plain" style="margin-bottom:1.5rem;max-width:46rem">
+        <li>Potrebuješ zapnutý počítač s internetom. Arduino skladby samo nerozpoznáva.</li>
+        <li>Senzor KS0035 je jednoduchý: v pokoji je na nule a kmitá len jedným smerom, takže zvuk je skreslený a rozpoznávanie nevyjde vždy. Pomáha hlasná skladba tesne pri senzore.</li>
+        <li>Zvuk má 8 kHz a 8 bitov, teda kvalitu telefónu. Displej zobrazuje len základné znaky, diakritika sa nahrádza obyčajnými písmenami.</li>
+      </ul>
+      <details><summary>Podsvietenie svieti, ale hore sú len štvorčeky</summary><div>Displej nedostáva príkazy. Skontroluj E (pin 6 na Mega 23), RS (pin 4 na Mega 22) a RW (pin 5 na GND) a skús nové vodiče.</div></details>
+      <details><summary>Displej je prázdny alebo text je slabý</summary><div>Nastav kontrast potenciometrom na V0. Skontroluj aj VSS na GND a VDD na 5V.</div></details>
+      <details><summary>Na displeji sú náhodné znaky</summary><div>Dátové vodiče D4 až D7 sú v zlom poradí alebo uvoľnené. Nahraj <code>tools/lcd_test/lcd_test.ino</code>, ktorý skúša všetky poradia a čitateľný text ukáže správne.</div></details>
+      <details><summary>Na displeji ostane „Listening...“</summary><div>Nebeží Python program, preto nikto neodpovedá.</div></details>
+      <details><summary>Stále „No match“</summary><div>Pusti hlasnejšiu skladbu, daj reproduktor bližšie, skús trimer na senzore a zopakuj.</div></details>
+      <details><summary>Chyba <code>api_token is incorrect</code></summary><div>Skontroluj kľúč v <code>host/audd_token.txt</code> a stav účtu na dashboard.audd.io.</div></details>
+      <details><summary>Nahrávanie do Arduina zlyhá</summary><div>Port drží iný program. Zavri Python program a Serial Monitor.</div></details>
+    </div>
+  </section>
+
+  <section id="autor">
+    <div class="wrap">
+      <div class="panel author">
+        <div>
+          <p class="tag">Autor</p>
+          <h3>Tomáš Dobos</h3>
+          <p>Študent CSOŠ Frašattiho III. GDMPS. Projekt vznikol ako samostatná práca s Arduinom: od zapojenia a firmvéru cez spracovanie zvuku až po tento web.</p>
+        </div>
+        <a class="btn" href="https://github.com/tomaskooooo/arduino-rozpoznanie-pesniciek" target="_blank" rel="noopener">Projekt na GitHube</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Tomáš Dobos, CSOŠ Frašattiho III. GDMPS</span>
+    <span>Rozpoznávanie skladieb: <a href="https://audd.io" target="_blank" rel="noopener">AudD</a></span>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

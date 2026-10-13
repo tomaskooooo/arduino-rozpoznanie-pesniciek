@@ -1,0 +1,814 @@
+<!doctype html>
+<html lang="sk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hľadač piesní | Arduino Mega</title>
+<meta name="description" content="Arduino Mega, zvukový senzor a LCD displej, ktoré rozpoznajú práve hrajúcu skladbu pomocou služby AudD. Zapojenie, princíp a celý kód. Vyrobil Tomáš Dobos.">
+<meta name="author" content="Tomáš Dobos">
+<meta property="og:title" content="Hľadač piesní | Arduino Mega">
+<meta property="og:description" content="Arduino rozpozná skladbu, ktorá práve hrá, a ukáže ju na LCD s živým spektrom. Vyrobil Tomáš Dobos.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#04060c">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2304060c'/%3E%3Crect x='5' y='16' width='3' height='11' fill='%2335e6ff'/%3E%3Crect x='10' y='8' width='3' height='19' fill='%2335e6ff'/%3E%3Crect x='15' y='12' width='3' height='15' fill='%2335e6ff'/%3E%3Crect x='20' y='5' width='3' height='22' fill='%2335e6ff'/%3E%3Crect x='25' y='14' width='3' height='13' fill='%2335e6ff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Exo+2:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="style.css">
+<noscript><style>.slot img, .slot video { opacity: 1; }</style></noscript>
+</head>
+<body>
+
+<header class="bar">
+  <div class="wrap">
+    <a class="brand" href="#top"><i></i>Hľadač piesní</a>
+    <nav aria-label="Hlavná navigácia">
+      <a href="#media">Média</a>
+      <a href="#komponenty">Súčiastky</a>
+      <a href="#zapojenie">Zapojenie</a>
+      <a href="#audd">AudD</a>
+      <a href="#princip">Princíp</a>
+      <a href="#kod">Kód</a>
+      <a href="#vyuzitie">Využitie</a>
+      <a class="keep" href="https://github.com/tomaskooooo/arduino-rozpoznanie-pesniciek" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <div class="wrap">
+    <div class="hero">
+      <div>
+        <p class="tag">Projekt pre Arduino Mega</p>
+        <h1>Hľadač piesní</h1>
+        <p class="lead">Malé zariadenie, ktoré päť sekúnd počúva hudbu, cez internet rozpozná skladbu a zobrazí jej názov a interpreta na LCD displeji. Dolný riadok ukazuje živé spektrum zvuku.</p>
+        <div class="cta">
+          <a class="btn" href="https://github.com/tomaskooooo/arduino-rozpoznanie-pesniciek" target="_blank" rel="noopener">Zdrojový kód</a>
+          <a class="btn ghost" href="#princip">Ako to funguje</a>
+        </div>
+        <p class="byline"><span>Vyrobil</span><b>Tomáš Dobos</b><span>študent CSOŠ Frašattiho III. GDMPS</span></p>
+      </div>
+
+      <figure class="device" style="margin:0">
+        <div class="lcd" role="img" aria-label="Ukážka displeja: v hornom riadku názov skladby, v dolnom riadku stĺpce spektra zvuku">
+          <div class="lcd-row" id="lcd-top" aria-hidden="true"><span>O</span><span>n</span><span>e</span><span></span><span>K</span><span>i</span><span>s</span><span>s</span><span></span><span>(</span><span>E</span><span>x</span><span>t</span><span>e</span><span>n</span><span>d</span></div>
+          <div class="lcd-row" id="lcd-bars" aria-hidden="true"><i style="--h:7"></i><i style="--h:8"></i><i style="--h:6"></i><i style="--h:5"></i><i style="--h:6"></i><i style="--h:4"></i><i style="--h:3"></i><i style="--h:4"></i><i style="--h:2"></i><i style="--h:3"></i><i style="--h:2"></i><i style="--h:2"></i><i style="--h:1"></i><i style="--h:1"></i><i style="--h:0"></i><i style="--h:0"></i></div>
+        </div>
+        <ul class="chips">
+          <li>16 pásiem</li>
+          <li>20 snímok za sekundu</li>
+          <li>5 s nahrávka</li>
+        </ul>
+        <figcaption>Ukážka displeja počas hrania. Hore sa posúva názov a interpret, dole poskakujú stĺpce podľa hudby.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <section id="co-to-je">
+    <div class="wrap">
+      <div class="head"><p class="tag">Čo to je</p><h2>Equalizer, ktorý vie pomenovať pieseň</h2></div>
+      <div class="prose">
+        <p>Hľadač piesní spája zvukový senzor, Arduino Mega, LCD displej a online službu na rozpoznávanie hudby. Stlačíš tlačidlo a Arduino päť sekúnd nahráva zvuk z okolia. Nahrávku pošle počítaču, ten ju odošle službe AudD a tá vráti názov skladby a interpreta. Výsledok sa zobrazí v hornom riadku displeja. Dlhší text sa po riadku posúva, aby sa dalo prečítať každé slovo.</p>
+        <p>Dolný riadok displeja pracuje samostatne. Arduino v ňom stále zobrazuje 16 stĺpcov, každý pre jedno frekvenčné pásmo, od basov vľavo po výšky vpravo. Stĺpce poskakujú podľa toho, čo práve hrá, takže displej funguje aj ako malý equalizer.</p>
+        <p>Arduino Mega nemá internet ani dosť výkonu na rozpoznávanie skladieb, preto sa o prácu delí s počítačom.</p>
+      </div>
+      <div class="grid" style="margin-top:1.5rem">
+        <div class="panel card"><span class="qty">Arduino Mega</span><b>Zbiera a zobrazuje</b><p>Číta tlačidlo, vzorkuje zvukový senzor, kreslí na LCD a počíta spektrum.</p></div>
+        <div class="panel card"><span class="qty">Počítač</span><b>Rozpoznáva</b><p>Prijme nahrávku, pošle ju službe AudD a výsledok vráti na displej.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="media">
+    <div class="wrap">
+      <div class="head"><p class="tag">Média</p><h2>Ako to vyzerá naživo</h2></div>
+      <figure class="slot video panel" style="margin:0">
+        <video controls preload="metadata" poster="assets/img/poster.jpg" playsinline>
+          <source src="assets/video/demo.mp4" type="video/mp4">
+        </video>
+        <div class="ph"><span>Video ukážka</span><span>assets/video/demo.mp4</span></div>
+      </figure>
+      <div class="media-grid">
+        <figure class="slot panel" style="margin:0"><img src="assets/img/foto-1.jpg" alt="Hotové zariadenie: Arduino Mega s LCD displejom a zvukovým senzorom" loading="lazy"><div class="ph"><span>Fotka 1</span><span>assets/img/foto-1.jpg</span></div></figure>
+        <figure class="slot panel" style="margin:0"><img src="assets/img/foto-2.jpg" alt="Zapojenie na nepájivom poli" loading="lazy"><div class="ph"><span>Fotka 2</span><span>assets/img/foto-2.jpg</span></div></figure>
+        <figure class="slot panel" style="margin:0"><img src="assets/img/foto-3.jpg" alt="LCD displej so spektrom a názvom skladby" loading="lazy"><div class="ph"><span>Fotka 3</span><span>assets/img/foto-3.jpg</span></div></figure>
+      </div>
+    </div>
+  </section>
+
+  <section id="komponenty">
+    <div class="wrap">
+      <div class="head"><p class="tag">Hardvér</p><h2>Čo potrebuješ</h2></div>
+      <div class="grid">
+        <div class="panel card"><span class="qty">1 ks</span><b>Arduino Mega 2560</b><p>Riadi všetko a komunikuje s počítačom cez USB.</p></div>
+        <div class="panel card"><span class="qty">1 ks</span><b>Zvukový senzor KS0035</b><p>Analógový mikrofón. Trimer na ňom mení zosilnenie.</p></div>
+        <div class="panel card"><span class="qty">1 ks</span><b>LCD displej 16×2</b><p>Čip HD44780 s 16 pinmi, bez I2C modulu.</p></div>
+        <div class="panel card"><span class="qty">1 ks</span><b>Tlačidlo so 4 nožičkami</b><p>Spustí počúvanie.</p></div>
+        <div class="panel card"><span class="qty">1 ks</span><b>Potenciometer 10 kΩ</b><p>Kontrast displeja. Alternatívou sú rezistory 4,7 kΩ a 1 kΩ.</p></div>
+        <div class="panel card"><span class="qty">1 ks</span><b>Rezistor 220 Ω</b><p>Obmedzuje prúd podsvietenia.</p></div>
+        <div class="panel card"><span class="qty">–</span><b>Nepájivé pole a vodiče</b><p>Zapojenie bez spájkovania.</p></div>
+      </div>
+      <h3>Softvér a účty</h3>
+      <ul class="plain">
+        <li>Arduino IDE. Knižnica LiquidCrystal je jeho súčasťou.</li>
+        <li>Python 3 s balíkmi <code>pyserial</code>, <code>numpy</code> a <code>requests</code>.</li>
+        <li>Počítač s Windowsom a pripojením na internet. Ovládanie citlivosti klávesmi používa funkciu, ktorá je len vo Windowse.</li>
+        <li>Bezplatný účet na audd.io a API kľúč.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="zapojenie">
+    <div class="wrap">
+      <div class="head"><p class="tag">Hardvér</p><h2>Zapojenie</h2></div>
+      <div class="prose"><p>Všetko sa zapája na nepájivom poli. Najdôležitejšie je správne poradie pinov displeja. Displej beží v 4-bitovom režime, takže piny 7 až 10 (D0 až D3) nechaj nezapojené.</p></div>
+
+      <h3>LCD displej 16×2</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col" class="num">Pin LCD</th><th scope="col">Označenie</th><th scope="col">Zapojiť na</th></tr></thead>
+          <tbody>
+            <tr><td class="num">1</td><td>VSS</td><td>GND</td></tr>
+            <tr><td class="num">2</td><td>VDD</td><td>5V</td></tr>
+            <tr><td class="num">3</td><td>V0</td><td>stredný vývod potenciometra (kontrast)</td></tr>
+            <tr><td class="num">4</td><td>RS</td><td>Mega pin 22</td></tr>
+            <tr><td class="num">5</td><td>RW</td><td>GND</td></tr>
+            <tr><td class="num">6</td><td>E</td><td>Mega pin 23</td></tr>
+            <tr><td class="num">7 až 10</td><td>D0 až D3</td><td>nezapojené</td></tr>
+            <tr><td class="num">11</td><td>D4</td><td>Mega pin 24</td></tr>
+            <tr><td class="num">12</td><td>D5</td><td>Mega pin 25</td></tr>
+            <tr><td class="num">13</td><td>D6</td><td>Mega pin 26</td></tr>
+            <tr><td class="num">14</td><td>D7</td><td>Mega pin 27</td></tr>
+            <tr><td class="num">15</td><td>A (podsvietenie +)</td><td>cez rezistor 220 Ω na Mega pin 9</td></tr>
+            <tr><td class="num">16</td><td>K (podsvietenie −)</td><td>GND</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="grid" style="margin-top:1.5rem">
+        <div>
+          <h3 style="margin-top:0">Zvukový senzor</h3>
+          <div class="table-wrap"><table style="min-width:0">
+            <thead><tr><th scope="col">Pin senzora</th><th scope="col">Zapojiť na</th></tr></thead>
+            <tbody><tr><td>G</td><td>GND</td></tr><tr><td>V</td><td>5V</td></tr><tr><td>S</td><td>Mega pin A4</td></tr></tbody>
+          </table></div>
+          <p style="margin-top:0.8rem;color:var(--muted);font-size:0.95rem">Trimer na senzore nastavuje zosilnenie. Pri hlasnej skladbe by hodnota <code>max</code> vo výpise programu mala byť aspoň okolo 50.</p>
+        </div>
+        <div>
+          <h3 style="margin-top:0">Tlačidlo</h3>
+          <p style="color:#c4d3f2">Štvornohé tlačidlo má nožičky spojené po dvojiciach. Zapoj ho uhlopriečne: jednu nožičku na Mega pin 2 a protiľahlú na GND. Rezistor netreba, program zapína vnútorný pull-up.</p>
+          <h3>Podsvietenie a kontrast</h3>
+          <p style="color:#c4d3f2">Rezistor 220 Ω vedie z vývodu A na pin 9, ktorý vie meniť jas. Kontrast nastavíš potenciometrom medzi 5V a GND so stredným vývodom na V0. Bez neho urob delič: 4,7 kΩ z 5V na V0 a 1 kΩ z V0 na GND. V0 priamo na GND je maximálny kontrast, pri ktorom sa písmená strácajú v štvorčekoch.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="audd">
+    <div class="wrap">
+      <div class="head"><p class="tag">Softvér</p><h2>Služba AudD</h2></div>
+      <div class="prose">
+        <p>AudD je online služba na rozpoznávanie hudby. Pošleš jej krátku nahrávku, stačí pár sekúnd, a vráti názov skladby, interpreta, album a odkaz. Nahrávku porovnáva so zvukovými odtlačkami skladieb vo svojej databáze.</p>
+      </div>
+      <h3>Ako získať kľúč</h3>
+      <ol class="plain">
+        <li>Zaregistruj sa na <a href="https://dashboard.audd.io" target="_blank" rel="noopener">dashboard.audd.io</a>.</li>
+        <li>Na hlavnej stránke dashboardu nájdeš svoj <code>api_token</code>. Skopíruj ho.</li>
+        <li>Po registrácii máš skúšobné obdobie, v ktorom môžeš API vyskúšať zadarmo. Aktuálne limity a ceny sú v dashboarde.</li>
+      </ol>
+      <h3>Ako vyzerá požiadavka</h3>
+      <div class="prose"><p>Stačí jeden HTTP POST na <code>https://api.audd.io/</code> s poľom <code>api_token</code> a súborom v poli <code>file</code>.</p></div>
+      <div class="grid" style="margin-top:1rem">
+        <pre class="plainpre"><code>import requests
+
+r = requests.post(
+    "https://api.audd.io/",
+    data={"api_token": "SEM_VLOZ_SVOJ_TOKEN"},
+    files={"file": open("nahravka.wav", "rb")},
+)
+print(r.json())</code></pre>
+        <pre class="plainpre"><code>{
+  "status": "success",
+  "result": {
+    "artist": "Tears For Fears",
+    "title": "Everybody Wants To Rule The World",
+    "album": "Songs From The Big Chair",
+    "release_date": "2014-11-10",
+    "timecode": "00:56"
+  }
+}</code></pre>
+      </div>
+      <div class="prose" style="margin-top:1rem"><p>Keď AudD skladbu nepozná, pole <code>result</code> je <code>null</code> a program zobrazí „No match, try again“. Pri zlom kľúči vráti chybu <code>authorization failed</code>.</p></div>
+      <div class="warn" style="margin-top:1.5rem">
+        <b>Pozor</b>
+        <span>API kľúč je ako heslo. Nevkladaj ho do kódu, ktorý zverejňuješ, a nedávaj ho na webovú stránku. Kto ho uvidí, môže míňať tvoje dotazy. V tomto repozitári je kľúč v súbore <code>host/audd_token.txt</code>, ktorý Git ignoruje.</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="princip">
+    <div class="wrap">
+      <div class="head"><p class="tag">Princíp</p><h2>Ako to funguje</h2></div>
+      <ol class="flow" aria-label="Tok údajov">
+        <li class="node"><b>Zvukový senzor</b><span>mikrofón KS0035</span></li>
+        <li class="link" aria-hidden="true"><div class="line"></div><span>pin A4</span></li>
+        <li class="node"><b>Arduino Mega</b><span>vzorky, LCD, tlačidlo</span></li>
+        <li class="link" aria-hidden="true"><div class="line"></div><span>USB</span></li>
+        <li class="node"><b>Počítač</b><span>program recognize.py</span></li>
+        <li class="link" aria-hidden="true"><div class="line"></div><span>internet</span></li>
+        <li class="node"><b>AudD</b><span>databáza skladieb</span></li>
+      </ol>
+
+      <h3>Jedno rozpoznanie krok za krokom</h3>
+      <ol class="steps">
+        <li><div><strong>Stlačenie tlačidla.</strong> Arduino zobrazí „Listening...“ a päť sekúnd vzorkuje senzor na pine A4: 8 000 vzoriek za sekundu, 8 bitov na vzorku, spolu 40 000 bajtov.</div></li>
+        <li><div><strong>Prenos do počítača.</strong> Arduino pošle hlavičku <code>AUDIO 40000</code> a hneď za ňou surové bajty cez USB rýchlosťou 250 000 baudov.</div></li>
+        <li><div><strong>Úprava zvuku.</strong> Počítač odpočíta jednosmernú zložku, pretože senzor je v pokoji blízko nuly. Potom signál zosilní na plnú hlasitosť a uloží ho ako 16-bitový súbor WAV.</div></li>
+        <li><div><strong>Rozpoznanie.</strong> Počítač odošle WAV službe AudD a čaká na odpoveď.</div></li>
+        <li><div><strong>Zobrazenie.</strong> Počítač pošle text „názov - interpret“ späť na Arduino. Písmená s diakritikou nahradí obyčajnými, lebo font displeja ich nemá. Dlhý text sa v hornom riadku posúva.</div></li>
+      </ol>
+
+      <h3>Živé spektrum v dolnom riadku</h3>
+      <div class="prose"><p>Arduino meria zvuk neustále, aj keď práve nerozpoznáva. Jeden obrázok vzniká takto:</p></div>
+      <ol class="plain" style="margin-top:1rem;max-width:46rem">
+        <li>Arduino odmeria 128 vzoriek pri 8 kHz, čo trvá 16 ms, a odpočíta ich priemer.</li>
+        <li>Pre každé z 16 pásiem spustí Goertzelov filter. Je to zjednodušená FFT, ktorá počíta len jednu frekvenciu naraz, a preto sa zmestí do pamäte a výkonu Arduina Mega bez dodatočných knižníc. Pásma sú rozložené logaritmicky od 110 Hz do 3 500 Hz.</li>
+        <li>Z výsledku sa vypočíta amplitúda každého pásma. Automatické zosilnenie sa prispôsobuje najhlasnejšiemu pásmu posledných pár desatín sekundy, takže stĺpce poskakujú pri tichej aj hlasnej hudbe.</li>
+        <li>Šumová brána skryje pásma slabšie ako šum senzora. V tichu sa displej nehýbe.</li>
+        <li>Výška každého stĺpca sa zaokrúhli na jednu z 8 úrovní. Každá úroveň je vlastný znak displeja, ktorý Arduino nahrá do pamäte LCD. Stĺpec rastie okamžite a klesá o jeden stupeň za snímku.</li>
+      </ol>
+      <div class="prose" style="margin-top:1rem"><p>Výsledkom je približne 20 snímok za sekundu. Počas päťsekundového nahrávania sa spektrum nekreslí a po nahraní sa obnoví samo.</p></div>
+    </div>
+  </section>
+
+  <section id="kod">
+    <div class="wrap">
+      <div class="head"><p class="tag">Kód</p><h2>Celý kód</h2></div>
+      <div class="tabs" role="tablist" aria-label="Zdrojový kód">
+        <button type="button" role="tab" id="tab-arduino" aria-controls="panel-arduino" aria-selected="true">Arduino</button>
+        <button type="button" role="tab" id="tab-python" aria-controls="panel-python" aria-selected="false">Python</button>
+      </div>
+
+      <div role="tabpanel" id="panel-arduino" aria-labelledby="tab-arduino">
+        <div class="prose" style="margin-bottom:1rem"><p>Nahraj ho cez Arduino IDE. Vyber dosku „Arduino Mega or Mega 2560“ a správny port. Zavri pritom program v Pythone, lebo port môže mať otvorený naraz len jeden program. Súbor je <code>firmware/song_finder/song_finder.ino</code>.</p></div>
+        <div class="code">
+          <div class="code-head"><span>Arduino C++ · song_finder.ino</span><button type="button" class="copy" data-copy="code-arduino">Kopírovať</button></div>
+          <pre><code id="code-arduino" class="language-cpp">// Song finder: mic + 16x2 LCD + button.
+//   button on pin 2 (or 'g') -&gt; stream 5 s of 8 kHz 8-bit audio from the sound sensor on A4 to the PC
+//   "L&lt;text&gt;"                -&gt; top LCD row shows &lt;text&gt; (scrolls when longer than 16 characters)
+//   "B&lt;0-255&gt;"               -&gt; backlight brightness
+//   "S&lt;1-9&gt;"                 -&gt; analyzer sensitivity (1 = bars stay low, 9 = bars jump easily)
+//   "D1" / "D0"              -&gt; debug: print the band amplitudes over serial / stop
+// The bottom LCD row is a live 16-band spectrum analyzer of the mic (Goertzel filters, no FFT library).
+// Wiring: sensor G -&gt; GND, V -&gt; 5V, S -&gt; A4.  LCD RS 22, E 23, D4-D7 24-27, backlight A -&gt; 220 ohm -&gt; pin 9.
+// Button: leg -&gt; pin 2, diagonal leg -&gt; GND.
+#include &lt;LiquidCrystal.h&gt;
+#include &lt;math.h&gt;
+
+const uint8_t PIN_MIC = A4;
+const uint8_t PIN_BTN = 2;
+const uint8_t PIN_BACKLIGHT = 9;       // PWM pin: LCD pin 15 (A) connects through the 220 ohm resistor to this pin
+const uint8_t BACKLIGHT_DEFAULT = 255; // 0 = off ... 255 = full brightness; the PC can change it with "B&lt;0-255&gt;"
+const uint32_t BAUD = 250000;
+const uint16_t SAMPLE_RATE = 8000;
+const uint8_t SECONDS = 5;
+const uint32_t TOTAL = (uint32_t)SAMPLE_RATE * SECONDS;
+const uint32_t PERIOD_US = 1000000UL / SAMPLE_RATE;
+
+const uint8_t LCD_COLS = 16;
+const uint8_t TEXT_MAX = 120;          // longest text for the top row
+const uint8_t SCROLL_GAP = 4;          // blank columns between the end of the text and its restart
+const uint32_t SCROLL_MS = 350;        // time per scroll step
+const uint8_t HOLD_TICKS = 4;          // scroll steps to pause with the start of the text in view
+const uint32_t REDRAW_MS = 10000;      // full LCD re-init, so a glitched display recovers by itself
+
+// Spectrum analyzer (bottom row)
+const uint8_t BANDS = LCD_COLS;        // one band per LCD column
+const uint8_t VIS_N = 128;             // samples per analysis block: 16 ms at 8 kHz
+const float BAND_LOW_HZ = 110.0f;      // left column
+const float BAND_HIGH_HZ = 3500.0f;    // right column, bands are spaced logarithmically in between
+const float GATE_AMP = 12.0f;          // band amplitude (ADC counts) below this shows nothing: keeps noise off the bars
+const float MIN_REF = 48.0f;           // the auto-gain never goes more sensitive than this amplitude = full bar
+const uint8_t SENS_DEFAULT = 6;        // 1 (bars stay low) ... 9 (bars jump easily); the PC can change it with "S&lt;1-9&gt;"
+const float REF_DECAY = 0.97f;         // how fast the auto-gain relaxes after a loud moment, per frame
+const uint8_t BAR_PIXELS = 0b01110;    // bar width inside a character cell (0b11111 = full width)
+
+LiquidCrystal lcd(22, 23, 24, 25, 26, 27);  // RS, E, D4, D5, D6, D7
+
+char line[TEXT_MAX + 4];  // "L" + text + NUL
+uint8_t len = 0;
+uint32_t lastByte = 0;    // when the last serial byte arrived
+char title[TEXT_MAX + 1] = "Song finder";
+uint8_t pos = 0;          // scroll position of the top row
+uint8_t hold = HOLD_TICKS;
+uint32_t lastDraw = 0;
+uint32_t lastScroll = 0;
+bool btnDown = false;
+uint32_t btnChange = 0;
+
+int16_t coeff[BANDS];     // Goertzel coefficients, 2*cos(w) in Q10
+int16_t block[VIS_N];     // one block of mic samples
+float amp[BANDS];         // measured amplitude per band, in ADC counts
+uint8_t level[BANDS];     // bar heights currently shown, 0..8
+float ref = MIN_REF;      // auto-gain reference: the amplitude that fills a bar
+float thr[8];             // thr[k] = fraction of ref a band needs to reach bar height k + 1
+bool debug = false;
+
+// Top row: text that fits is static, longer text shows a 16-column window that wraps around.
+void drawTitle() {
+  uint8_t n = strlen(title);
+  lcd.setCursor(0, 0);
+  for (uint8_t i = 0; i &lt; LCD_COLS; i++) {
+    char c = ' ';
+    if (n &lt;= LCD_COLS) {
+      if (i &lt; n) c = title[i];
+    } else {
+      uint8_t k = (pos + i) % (n + SCROLL_GAP);
+      if (k &lt; n) c = title[k];
+    }
+    lcd.write(c);
+  }
+}
+
+// Bottom row: one custom character per bar height, 1..8 pixels tall. Level 0 is a blank.
+void createBarChars() {
+  for (uint8_t h = 1; h &lt;= 8; h++) {
+    uint8_t rows[8];
+    for (uint8_t r = 0; r &lt; 8; r++) rows[r] = (r &gt;= 8 - h) ? BAR_PIXELS : 0;
+    lcd.createChar(h - 1, rows);
+  }
+}
+
+void drawBars() {
+  lcd.setCursor(0, 1);
+  for (uint8_t b = 0; b &lt; BANDS; b++) {
+    lcd.write(level[b] ? (uint8_t)(level[b] - 1) : (uint8_t)' ');
+  }
+}
+
+// Full init + redraw. The HD44780 can lose its 4-bit alignment after a glitch (power dip, bumped
+// wire, noise on E) and only the init sequence recovers it, so this runs every REDRAW_MS, not once.
+// The custom bar characters live in the LCD's own memory, so they are rebuilt here as well.
+void draw() {
+  lcd.begin(16, 2);
+  createBarChars();
+  drawTitle();
+  drawBars();
+  lastDraw = millis();
+}
+
+void scrollStep() {
+  uint8_t n = strlen(title);
+  if (n &lt;= LCD_COLS) return;
+  if (hold) {
+    hold--;
+    return;
+  }
+  pos = (pos + 1) % (n + SCROLL_GAP);
+  if (pos == 0) hold = HOLD_TICKS;
+  drawTitle();
+}
+
+void setText(const char* text) {
+  strncpy(title, text, TEXT_MAX);
+  title[TEXT_MAX] = 0;
+  pos = 0;
+  hold = HOLD_TICKS;
+  draw();
+  lastScroll = millis();
+}
+
+void setupBands() {
+  float ratio = powf(BAND_HIGH_HZ / BAND_LOW_HZ, 1.0f / (BANDS - 1));
+  float f = BAND_LOW_HZ;
+  for (uint8_t b = 0; b &lt; BANDS; b++) {
+    coeff[b] = (int16_t)lroundf(2.0f * cosf(2.0f * M_PI * f / SAMPLE_RATE) * 1024.0f);
+    f *= ratio;
+  }
+}
+
+// Sensitivity shapes the curve from signal strength to bar height: height = 8 * (amp/ref)^gamma.
+// gamma 0.5 (level 9) boosts weak bands so most bars are tall; gamma 2 (level 1) only lets strong peaks reach the top.
+void setSensitivity(uint8_t s) {
+  s = constrain(s, 1, 9);
+  float gamma = 0.5f + (9 - s) * 0.19f;
+  for (uint8_t k = 1; k &lt; 8; k++) thr[k] = powf((k + 0.5f) / 8.0f, 1.0f / gamma);
+}
+
+// Sample VIS_N points at SAMPLE_RATE and remove the DC offset (the sensor idles near 0 and swings up).
+void sampleBlock() {
+  uint32_t next = micros();
+  int32_t sum = 0;
+  for (uint8_t i = 0; i &lt; VIS_N; i++) {
+    while ((int32_t)(micros() - next) &lt; 0) {}
+    next += PERIOD_US;
+    int16_t v = analogRead(PIN_MIC);
+    block[i] = v;
+    sum += v;
+  }
+  int16_t mean = sum / VIS_N;
+  for (uint8_t i = 0; i &lt; VIS_N; i++) {
+    int16_t x = block[i] - mean;
+    block[i] = constrain(x, -500, 500);  // the clamp keeps the fixed-point filter below inside 32 bits
+  }
+}
+
+// One Goertzel filter per band, then map the amplitudes to bar heights.
+void analyze() {
+  float top = 0;
+  for (uint8_t b = 0; b &lt; BANDS; b++) {
+    const int32_t c = coeff[b];
+    int32_t s1 = 0, s2 = 0;
+    for (uint8_t i = 0; i &lt; VIS_N; i++) {
+      int32_t s = block[i] + ((c * s1) &gt;&gt; 10) - s2;
+      s2 = s1;
+      s1 = s;
+    }
+    float p = (float)s1 * s1 + (float)s2 * s2 - (c / 1024.0f) * (float)s1 * s2;
+    amp[b] = sqrtf(p &gt; 0 ? p : 0) * (2.0f / VIS_N);
+    if (amp[b] &gt; top) top = amp[b];
+  }
+  ref = max(top, ref * REF_DECAY);
+  if (ref &lt; MIN_REF) ref = MIN_REF;
+  for (uint8_t b = 0; b &lt; BANDS; b++) {
+    uint8_t lv = 0;
+    if (amp[b] &gt;= GATE_AMP) {
+      float v = amp[b] / ref;
+      lv = 1;
+      for (uint8_t k = 1; k &lt; 8; k++) {
+        if (v &gt;= thr[k]) lv = k + 1;
+      }
+    }
+    if (level[b] &gt; 0 &amp;&amp; lv + 1 &lt; level[b]) lv = level[b] - 1;  // bars fall one step per frame
+    level[b] = lv;
+  }
+}
+
+void printDebug(uint32_t frameUs) {
+  Serial.print('V');
+  for (uint8_t b = 0; b &lt; BANDS; b++) {
+    Serial.print(' ');
+    Serial.print((int)amp[b]);
+  }
+  Serial.print(' ');
+  Serial.print((int)ref);
+  Serial.print(' ');
+  Serial.println(frameUs / 1000);
+}
+
+void handleLine() {
+  if (len &gt; 1 &amp;&amp; line[0] == 'L') {
+    setText(line + 1);
+  } else if (len &gt; 1 &amp;&amp; line[0] == 'B') {
+    analogWrite(PIN_BACKLIGHT, constrain(atoi(line + 1), 0, 255));
+  } else if (len &gt; 1 &amp;&amp; line[0] == 'S') {
+    setSensitivity(atoi(line + 1));
+  } else if (len &gt; 1 &amp;&amp; line[0] == 'D') {
+    debug = line[1] == '1';
+  }
+}
+
+void capture() {
+  Serial.print(F("AUDIO "));
+  Serial.println(TOTAL);
+  uint32_t next = micros();
+  for (uint32_t i = 0; i &lt; TOTAL; i++) {
+    while ((int32_t)(micros() - next) &lt; 0) {}
+    next += PERIOD_US;
+    Serial.write((uint8_t)(analogRead(PIN_MIC) &gt;&gt; 2));  // 10-bit -&gt; 8-bit
+  }
+}
+
+// True once per press (debounced). Internal pull-up: the pin reads LOW while the button is down.
+bool buttonPressed() {
+  bool down = digitalRead(PIN_BTN) == LOW;
+  if (down != btnDown &amp;&amp; millis() - btnChange &gt; 30) {
+    btnDown = down;
+    btnChange = millis();
+    return down;
+  }
+  return false;
+}
+
+// Show feedback on the LCD right away, then stream the audio. The PC script answers with the result.
+void listen() {
+  memset(level, 0, sizeof(level));
+  ref = MIN_REF;
+  setText("Listening...");
+  capture();
+  btnDown = digitalRead(PIN_BTN) == LOW;  // a button still held after the capture must not retrigger
+  btnChange = millis();
+}
+
+void setup() {
+  Serial.begin(BAUD);
+  pinMode(PIN_BTN, INPUT_PULLUP);
+  pinMode(PIN_BACKLIGHT, OUTPUT);
+  analogWrite(PIN_BACKLIGHT, BACKLIGHT_DEFAULT);
+  ADCSRA = (ADCSRA &amp; ~0x07) | 0x04;  // ADC clock /16: a read takes ~16 us instead of ~112 us
+  setupBands();
+  setSensitivity(SENS_DEFAULT);
+  delay(1000);  // let the LCD settle after power-up/reset before the init sequence
+  draw();
+  Serial.println(F("BOOT"));
+}
+
+void loop() {
+  uint32_t frameStart = micros();
+  if (buttonPressed()) listen();
+  if (len &gt; 0 &amp;&amp; millis() - lastByte &gt; 500) len = 0;  // drop a half-received line so it can't swallow the next command
+  while (Serial.available()) {
+    lastByte = millis();
+    char c = Serial.read();
+    if (len == 0 &amp;&amp; c == 'g') {
+      listen();
+    } else if (c == '\n') {
+      line[len] = 0;
+      handleLine();
+      len = 0;
+    } else if (c != '\r' &amp;&amp; len &lt; sizeof(line) - 1) {
+      line[len++] = c;
+    }
+  }
+  uint32_t now = millis();
+  if (now - lastDraw &gt;= REDRAW_MS) {
+    draw();
+  } else if (now - lastScroll &gt;= SCROLL_MS) {
+    scrollStep();
+    lastScroll = now;
+  }
+  sampleBlock();
+  analyze();
+  drawBars();
+  if (debug) printDebug(micros() - frameStart);
+}</code></pre>
+        </div>
+        <h3>Príkazy medzi Arduinom a počítačom</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th scope="col">Smer</th><th scope="col">Správa</th><th scope="col">Význam</th></tr></thead>
+            <tbody>
+              <tr><td>PC → Arduino</td><td><code>L&lt;text&gt;</code></td><td>zobrazí text v hornom riadku (najviac 120 znakov)</td></tr>
+              <tr><td>PC → Arduino</td><td><code>B&lt;0–255&gt;</code></td><td>jas podsvietenia</td></tr>
+              <tr><td>PC → Arduino</td><td><code>S&lt;1–9&gt;</code></td><td>citlivosť spektra</td></tr>
+              <tr><td>PC → Arduino</td><td><code>D1</code> a <code>D0</code></td><td>ladiaci výpis zapnúť a vypnúť</td></tr>
+              <tr><td>Arduino → PC</td><td><code>AUDIO 40000</code></td><td>hlavička nahrávky, za ňou 40 000 bajtov vzoriek</td></tr>
+              <tr><td>Arduino → PC</td><td><code>BOOT</code></td><td>Arduino sa práve spustilo</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div role="tabpanel" id="panel-python" aria-labelledby="tab-python">
+        <div class="prose" style="margin-bottom:1rem">
+          <p>Program beží na počítači. Nainštaluj balíky, vlož AudD kľúč do súboru <code>host/audd_token.txt</code> a spusti ho s číslom portu Arduina.</p>
+        </div>
+        <pre class="plainpre" style="margin-bottom:1rem"><code>pip install -r host/requirements.txt
+python host/recognize.py COM9
+python host/recognize.py COM9 50   # jas podsvietenia 50 %</code></pre>
+        <div class="code">
+          <div class="code-head"><span>Python 3 · host/recognize.py</span><button type="button" class="copy" data-copy="code-python">Kopírovať</button></div>
+          <pre><code id="code-python" class="language-python">"""Hľadač piesní (PC strana): čaká na stlačenie tlačidla na Arduine Mega, rozpozná nahrávku cez AudD a ukáže ju na LCD.
+
+Použitie: python recognize.py COM9 [jas%]   (stlač tlačidlo na Arduine; Ctrl+C ukončí program)
+
+API kľúč sa hľadá v tomto poradí:
+  1. súbor host/audd_token.txt (jeden riadok, súbor je v .gitignore, nikdy sa nenahrá na GitHub)
+  2. premenná prostredia AUDD_API_TOKEN
+"""
+import io
+import msvcrt  # len Windows: číta klávesy + a -
+import os
+import pathlib
+import sys
+import time
+import unicodedata
+import wave
+
+import numpy as np
+import requests
+import serial
+
+BAUD = 250000
+SAMPLE_RATE = 8000
+LCD_MAX = 120  # longest text the Mega accepts (TEXT_MAX in the sketch)
+SENS_DEFAULT = 6  # bar sensitivity at startup, same scale as SENS_DEFAULT in the sketch
+
+
+def load_token() -&gt; str:
+    path = pathlib.Path(__file__).with_name("audd_token.txt")
+    token = path.read_text(encoding="utf8").strip() if path.exists() else os.environ.get("AUDD_API_TOKEN", "").strip()
+    if not token or token == "SEM_VLOZ_SVOJ_TOKEN":
+        sys.exit("Chýba AudD kľúč. Vlož ho do súboru host/audd_token.txt (pozri audd_token.example.txt).")
+    return token
+
+
+AUDD_TOKEN = load_token()
+
+PUNCTUATION = {"–": "-", "—": "-", "‘": "'", "’": "'", "“": '"', "”": '"', "…": "..."}
+EXTRA_LETTERS = {"ł": "l", "Ł": "L", "đ": "d", "Đ": "D", "ø": "o", "Ø": "O", "ß": "ss", "æ": "ae", "Æ": "AE", "œ": "oe", "Œ": "OE", "ı": "i"}
+
+
+def lcd_safe(text: str) -&gt; str:
+    """Plain ASCII for the LCD, whose font has no accented letters: é -&gt; e, š -&gt; s, ť -&gt; t, ď -&gt; d, and so on."""
+    text = unicodedata.normalize("NFKD", text)  # splits "š" into "s" + a combining caron
+    text = "".join(c for c in text if not unicodedata.combining(c))
+    return text.translate(str.maketrans({**PUNCTUATION, **EXTRA_LETTERS}))
+
+
+def lcd(ser: serial.Serial, text: str) -&gt; None:
+    """Show text on the top LCD row (the bottom row is the Mega's live spectrum analyzer).
+
+    The Mega scrolls text longer than 16 characters. Non-ASCII becomes '?'. The Mega's serial buffer is
+    64 bytes and it is busy while it redraws the LCD, so the message goes out in small chunks with a
+    short pause between them.
+    """
+    # The leading newline ends any half-received line the Mega might still be holding, so it can't swallow ours.
+    data = f"\nL{lcd_safe(text).replace(chr(10), ' ')[:LCD_MAX]}\n".encode("ascii", errors="replace")
+    for i in range(0, len(data), 24):
+        ser.write(data[i:i + 24])
+        ser.flush()
+        time.sleep(0.05)
+
+
+def to_wav(u8: np.ndarray) -&gt; bytes:
+    s = u8.astype(np.float32)
+    print(f"min {u8.min()}  max {u8.max()}  mean {s.mean():.0f}  clipped {np.mean((u8 &gt;= 250) | (u8 &lt;= 5)):.0%}")
+    s -= s.mean()
+    peak = np.abs(s).max()
+    if peak &lt; 2:
+        raise RuntimeError("audio is silent: check the sensor wiring (S to A4)")
+    pcm = (s / peak * 30000).astype(np.int16)
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(SAMPLE_RATE)
+        w.writeframes(pcm.tobytes())
+    return buf.getvalue()
+
+
+def identify(ser: serial.Serial, n: int) -&gt; None:
+    """Read the n audio bytes that follow an AUDIO header, look the song up, and show it on the LCD."""
+    # Never change ser.timeout here: reconfiguring a Windows port while samples stream in can drop a byte.
+    raw = bytearray()
+    deadline = time.time() + 15
+    while len(raw) &lt; n and time.time() &lt; deadline:
+        raw += ser.read(n - len(raw))
+    if len(raw) &lt; n * 0.98:
+        raise RuntimeError(f"got {len(raw)} of {n} bytes")
+    if len(raw) != n:
+        print(f"note: {n - len(raw)} sample(s) missing, carrying on")
+    wav = to_wav(np.frombuffer(bytes(raw), dtype=np.uint8))
+    with open("last_capture.wav", "wb") as f:
+        f.write(wav)
+    lcd(ser, "Searching...")
+    r = requests.post(
+        "https://api.audd.io/",
+        data={"api_token": AUDD_TOKEN},
+        files={"file": ("capture.wav", wav, "audio/wav")},
+        timeout=30,
+    )
+    result = r.json()
+    song = result.get("result")
+    if song:
+        print(f"=&gt; {song['artist']} - {song['title']}")
+        lcd(ser, f"{song['title']} - {song['artist']}")
+    else:
+        print(f"=&gt; no match ({result.get('error', {}).get('error_message', 'unknown song')})")
+        lcd(ser, "No match, try again")
+
+
+def main() -&gt; None:
+    if len(sys.argv) &lt; 2:
+        sys.exit("Použitie: python recognize.py COM9 [jas%]")
+    ser = serial.Serial()
+    ser.port = sys.argv[1]
+    ser.baudrate = BAUD
+    ser.timeout = 1
+    ser.dtr = False  # keep DTR low so opening/closing the port does not reset the Mega (and wipe the LCD)
+    ser.rts = False
+    ser.open()
+    time.sleep(0.3)
+    ser.reset_input_buffer()
+    if len(sys.argv) &gt; 2:  # optional backlight brightness in percent, e.g. "python recognize.py COM9 40"
+        ser.write(f"\nB{round(int(sys.argv[2]) * 255 / 100)}\n".encode("ascii"))
+    sens = SENS_DEFAULT
+    ser.write(f"\nS{sens}\n".encode("ascii"))
+    lcd(ser, "Press button to listen")
+    print("Ready. Press the button on the Mega, then play the song near the mic. Ctrl+C to quit.")
+    print("Click this window, then press + or - to change how sensitive the bars are (1-9).")
+    ser.timeout = 0.2  # short, so key presses are noticed quickly (never changed again while audio streams)
+    try:
+        while True:
+            while msvcrt.kbhit():
+                key = msvcrt.getwch()
+                if key in "+=" and sens &lt; 9 or key in "-_" and sens &gt; 1:
+                    sens += 1 if key in "+=" else -1
+                    ser.write(f"\nS{sens}\n".encode("ascii"))
+                    print(f"bar sensitivity {sens}/9")
+            header = ser.readline().decode("ascii", errors="replace").strip()
+            if not header.startswith("AUDIO "):
+                continue
+            print("Listening...")
+            try:
+                identify(ser, int(header.split()[1]))
+            except Exception as e:
+                print(f"error: {e}")
+                lcd(ser, f"Error: {e}")
+            time.sleep(0.2)
+            ser.reset_input_buffer()  # drop anything sent while we were busy
+            print("Ready for the next press.")
+    except KeyboardInterrupt:
+        pass
+    finally:
+        time.sleep(0.3)  # let the last LCD line reach the Mega before the port closes
+        ser.close()
+
+
+if __name__ == "__main__":
+    main()</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="pouzitie">
+    <div class="wrap">
+      <div class="head"><p class="tag">Spustenie</p><h2>Ako to rozbehať</h2></div>
+      <ol class="steps">
+        <li><div>Zapoj všetko podľa tabuliek a pripoj Arduino USB káblom.</div></li>
+        <li><div>Nahraj Arduino kód.</div></li>
+        <li><div>Vlož svoj AudD kľúč do súboru <code>host/audd_token.txt</code>.</div></li>
+        <li><div>Spusti <code>python host/recognize.py COM9</code>. Číslo portu nájdeš v Správcovi zariadení v časti Porty (COM a LPT).</div></li>
+        <li><div>Pusti hlasnú skladbu a daj reproduktor tesne k senzoru.</div></li>
+        <li><div>Stlač tlačidlo. Výsledok sa zobrazí po piatich sekundách. Klávesmi <code>+</code> a <code>-</code> v okne programu meníš citlivosť spektra.</div></li>
+      </ol>
+      <h3>Čo ukazuje horný riadok</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Text</th><th scope="col">Význam</th></tr></thead>
+          <tbody>
+            <tr><td>Song finder</td><td>úvodný stav po štarte Arduina</td></tr>
+            <tr><td>Press button to listen</td><td>počítačový program beží a čaká na tlačidlo</td></tr>
+            <tr><td>Listening...</td><td>Arduino práve nahráva</td></tr>
+            <tr><td>Searching...</td><td>čaká sa na odpoveď AudD</td></tr>
+            <tr><td>názov - interpret</td><td>výsledok, dlhý text sa posúva</td></tr>
+            <tr><td>No match, try again</td><td>skladba sa nerozpoznala</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="vyuzitie">
+    <div class="wrap">
+      <div class="head"><p class="tag">Využitie</p><h2>Na čo sa to dá použiť</h2></div>
+      <div class="grid">
+        <div class="panel card"><b>Displej „čo hrá?“</b><p>V miestnosti, v dielni alebo na párty ukáže názov skladby bez telefónu.</p></div>
+        <div class="panel card"><b>Vizualizácia hudby</b><p>Dolný riadok funguje ako stolový equalizer aj bez rozpoznávania.</p></div>
+        <div class="panel card"><b>Učenie elektroniky</b><p>Analógové vstupy, vzorkovanie, spracovanie signálu, sériová komunikácia, displej a internetové API na jednom projekte.</p></div>
+        <div class="panel card"><b>Zoznam skladieb</b><p>Počítačový program môže každý výsledok uložiť do súboru a vytvoriť z neho playlist. Tento nápad tu zatiaľ nie je.</p></div>
+        <div class="panel card"><b>Svetelná show</b><p>Hodnoty 16 pásiem sa dajú poslať na LED pásik alebo maticu, ktoré budú reagovať na hudbu.</p></div>
+        <div class="panel card"><b>Krúžok a výstava</b><p>Princíp rozpoznávania hudby sa na malom zariadení dá ukázať názorne.</p></div>
+      </div>
+
+      <h3>Obmedzenia a riešenie problémov</h3>
+      <ul class="plain" style="margin-bottom:1.5rem;max-width:46rem">
+        <li>Potrebuješ zapnutý počítač s internetom. Arduino skladby samo nerozpoznáva.</li>
+        <li>Senzor KS0035 je jednoduchý: v pokoji je na nule a kmitá len jedným smerom, takže zvuk je skreslený a rozpoznávanie nevyjde vždy. Pomáha hlasná skladba tesne pri senzore.</li>
+        <li>Zvuk má 8 kHz a 8 bitov, teda kvalitu telefónu. Displej zobrazuje len základné znaky, diakritika sa nahrádza obyčajnými písmenami.</li>
+      </ul>
+      <details><summary>Podsvietenie svieti, ale hore sú len štvorčeky</summary><div>Displej nedostáva príkazy. Skontroluj E (pin 6 na Mega 23), RS (pin 4 na Mega 22) a RW (pin 5 na GND) a skús nové vodiče.</div></details>
+      <details><summary>Displej je prázdny alebo text je slabý</summary><div>Nastav kontrast potenciometrom na V0. Skontroluj aj VSS na GND a VDD na 5V.</div></details>
+      <details><summary>Na displeji sú náhodné znaky</summary><div>Dátové vodiče D4 až D7 sú v zlom poradí alebo uvoľnené. Nahraj <code>tools/lcd_test/lcd_test.ino</code>, ktorý skúša všetky poradia a čitateľný text ukáže správne.</div></details>
+      <details><summary>Na displeji ostane „Listening...“</summary><div>Nebeží Python program, preto nikto neodpovedá.</div></details>
+      <details><summary>Stále „No match“</summary><div>Pusti hlasnejšiu skladbu, daj reproduktor bližšie, skús trimer na senzore a zopakuj.</div></details>
+      <details><summary>Chyba <code>api_token is incorrect</code></summary><div>Skontroluj kľúč v <code>host/audd_token.txt</code> a stav účtu na dashboard.audd.io.</div></details>
+      <details><summary>Nahrávanie do Arduina zlyhá</summary><div>Port drží iný program. Zavri Python program a Serial Monitor.</div></details>
+    </div>
+  </section>
+
+  <section id="autor">
+    <div class="wrap">
+      <div class="panel author">
+        <div>
+          <p class="tag">Autor</p>
+          <h3>Tomáš Dobos</h3>
+          <p>Študent CSOŠ Frašattiho III. GDMPS. Projekt vznikol ako samostatná práca s Arduinom: od zapojenia a firmvéru cez spracovanie zvuku až po tento web.</p>
+        </div>
+        <a class="btn" href="https://github.com/tomaskooooo/arduino-rozpoznanie-pesniciek" target="_blank" rel="noopener">Projekt na GitHube</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Tomáš Dobos, CSOŠ Frašattiho III. GDMPS</span>
+    <span>Rozpoznávanie skladieb: <a href="https://audd.io" target="_blank" rel="noopener">AudD</a></span>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

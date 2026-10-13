@@ -1,0 +1,14 @@
+# tajné a osobné veci, ktoré sa nikdy nemajú dostať na GitHub
+host/audd_token.txt
+.env
+.env.*
+*.wav
+*.bin
+
+# Python, Vercel, systém
+__pycache__/
+*.pyc
+.vercel/
+.DS_Store
+Thumbs.db
+desktop.ini
