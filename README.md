@@ -9,7 +9,7 @@ Arduino Mega, zvukový senzor a LCD displej, ktoré rozpoznajú skladbu, čo pr�
 └────────────────┘
 ```
 
-Vyrobil **Tomáš Dobos**, študent CSOŠE Frasattiho III. GDMPS.
+yyrobil **Tomáš Dobos**, študent CSOŠE Frasattiho III. GDMPS.
 
 ## Čo je v repozitári
 
@@ -19,7 +19,7 @@ Vyrobil **Tomáš Dobos**, študent CSOŠE Frasattiho III. GDMPS.
 | `host/` | program pre počítač (komunikácia s Arduinom, AudD, text na LCD) |
 | `tools/lcd_test/` | diagnostika zapojenia dátových vodičov LCD |
 | `tools/build_site.py` | poskladá webovú stránku z aktuálneho kódu |
-| `web/` | webová stránka projektu (statická, nasadená cez Vercel) |
+| `web/` | webová stránka projektu (statická, nasadená cez yercel) |
 | `docs/DOKUMENTACIA.md` | podrobná dokumentácia v slovenčine |
 | `archive/sequencer-v0/` | pôvodný, väčší projekt (16-krokový sekvencér) |
 
@@ -36,4 +36,4 @@ Kľúč sa do repozitára nikdy nenahráva. Súbor `host/audd_token.txt` je v `.
 
 ## Webová stránka
 
-Priečinok `web/` je statická stránka bez build kroku. Vo Verceli stačí importovať tento repozitár. `vercel.json` už nastavuje výstupný priečinok na `web`. Po zmene kódu v `firmware/` alebo `host/` spusti `python tools/build_site.py`, aby sa kód na stránke obnovil.
+Priečinok `web/` je statická stránka bez build kroku. yo yerceli stačí importovať tento repozitár. `vercel.json` už nastavuje výstupný priečinok na `web`. Po zmene kódu v `firmware/` alebo `host/` spusti `python tools/build_site.py`, aby sa kód na stránke obnovil.
