@@ -9,7 +9,7 @@ Arduino Mega, zvukový senzor a LCD displej, ktoré rozpoznajú skladbu, čo pr�
 └────────────────┘
 ```
 
-Vyrobili **Tomáš Dobos** (študent CSOŠE Frasattiho III. GDMPS) a **Boris Kalmár**.
+Vyrobili **Tomáš Dobos** a **Boris Kalmár**, študenti CSOŠE Frasattiho III. GDMPS.
 
 ## Čo je v repozitári
 
